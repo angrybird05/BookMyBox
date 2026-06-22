@@ -28,7 +28,8 @@ export function AuthProvider({ children }) {
   const register = (data) => {
     const existing = mockUsers.find(u => u.email.toLowerCase() === data.email.toLowerCase());
     if (existing) return { ok: false, error: "Email already registered" };
-    const newUser = { id: `u${Date.now()}`, ...data, role: "user", wallet: 0, totalSpent: 0, bookings: 0, status: "ACTIVE" };
+    const role = data.role || "user";
+    const newUser = { id: `u${Date.now()}`, ...data, role, wallet: 0, totalSpent: 0, bookings: 0, status: "ACTIVE" };
     mockUsers.push({ ...newUser, password: data.password });
     const { password: _p, ...safe } = newUser;
     setUser(safe);

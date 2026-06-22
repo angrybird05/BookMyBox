@@ -2,10 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { grounds, reviews } from "../data/mockData";
 import GroundCard from "../components/GroundCard";
 import StatsCard from "../components/StatsCard";
+import { useAuth } from "../context/AuthContext";
 
 export const Route = createFileRoute("/")({ component: Landing });
 
 function Landing() {
+  const { user } = useAuth();
   return (
     <>
       <section className="hero">
@@ -19,8 +21,16 @@ function Landing() {
               </h1>
               <p className="lede">Reserve slots instantly. Pay online. Play now. The fastest way to book box cricket in your city.</p>
               <div className="hero-ctas">
-                <Link to="/grounds" className="neo-btn lg">Find a Ground →</Link>
-                <a href="#how" className="neo-btn lg outline">How it Works</a>
+                {user ? (
+                  <Link to="/grounds" className="neo-btn lg">Find a Ground →</Link>
+                ) : (
+                  <Link to="/login" search={{ role: "user" }} className="neo-btn lg">Find a Ground →</Link>
+                )}
+                {user && user.role === "admin" ? (
+                  <Link to="/add-ground" className="neo-btn lg outline">Add Your Ground →</Link>
+                ) : (
+                  <Link to="/login" search={{ role: "admin" }} className="neo-btn lg outline">Add Your Ground →</Link>
+                )}
               </div>
             </div>
             <div style={{ position: "relative" }}>
