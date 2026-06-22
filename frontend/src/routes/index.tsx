@@ -52,7 +52,7 @@ function Landing() {
           {[
             { n: "01", t: "Search Ground", d: "Filter by location, price, and amenities.", i: "🔍" },
             { n: "02", t: "Pick Slots", d: "Select one or more time slots in one go.", i: "🕒" },
-            { n: "03", t: "Pay Online", d: "UPI, cards, wallet — your choice.", i: "💳" },
+            { n: "03", t: "Pay Online", d: "UPI, cards, or net banking — your choice.", i: "💳" },
             { n: "04", t: "Play!", d: "Show your ticket and hit the turf.", i: "🏏" },
           ].map(s => (
             <div key={s.n} className="how-step">

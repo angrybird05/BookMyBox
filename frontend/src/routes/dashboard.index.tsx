@@ -18,7 +18,6 @@ function Dashboard() {
         <StatsCard value={user.bookings || 12} label="Total Bookings" bg="var(--yellow)" icon="📅" />
         <StatsCard value={upcoming.length} label="Upcoming" bg="var(--coral)" icon="⏰" />
         <StatsCard value={`₹${user.totalSpent || 8400}`} label="Total Spent" bg="var(--teal)" icon="💸" />
-        <StatsCard value={`₹${user.wallet || 0}`} label="Wallet" bg="var(--purple)" icon="👛" />
       </div>
 
       <h2 className="section-title">Upcoming Bookings</h2>
@@ -52,18 +51,6 @@ function Dashboard() {
         ))}
       </div>
 
-      <h2 className="section-title mt-8">Wallet</h2>
-      <div className="neo-card" style={{ maxWidth: 480 }}>
-        <div className="mono" style={{ fontSize: 36 }}>₹{user.wallet || 1250}</div>
-        <div style={{ fontSize: 13, marginBottom: 12 }}>Available balance</div>
-        <button className="neo-btn">+ Add Money</button>
-        <div className="mt-4">
-          <h4 style={{ textTransform: "uppercase", fontWeight: 800, fontSize: 13, marginBottom: 8 }}>Recent transactions</h4>
-          <div className="cart-item"><span>Booking refund — Stumps & Wickets</span><span className="mono" style={{ color: "var(--green)" }}>+₹500</span></div>
-          <div className="cart-item"><span>Wallet top-up</span><span className="mono" style={{ color: "var(--green)" }}>+₹1000</span></div>
-          <div className="cart-item"><span>Booking — Sixer Arena</span><span className="mono" style={{ color: "var(--coral)" }}>−₹250</span></div>
-        </div>
-      </div>
     </div>
   );
 }
