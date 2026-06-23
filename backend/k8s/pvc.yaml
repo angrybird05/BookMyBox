@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bookmybox-db-pvc
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bookmybox-storage-pvc
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

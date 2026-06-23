@@ -1,0 +1,57 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bookmybox-ingress
+  namespace: bookmybox
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    # WebSocket support annotations
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  rules:
+    - host: api.bookmybox.com  # Replace with actual domain in production
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: bmb-backend-service
+                port:
+                  number: 8000
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: bmb-backend-service
+                port:
+                  number: 8000
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: bmb-backend-service
+                port:
+                  number: 8000
+          - path: /redoc
+            pathType: Prefix
+            backend:
+              service:
+                name: bmb-backend-service
+                port:
+                  number: 8000
+          - path: /openapi.json
+            pathType: Prefix
+            backend:
+              service:
+                name: bmb-backend-service
+                port:
+                  number: 8000
+  # TLS configuration placeholder
+  # tls:
+  #   - hosts:
+  #       - api.bookmybox.com
+  #     secretName: bookmybox-tls-cert

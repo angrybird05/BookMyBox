@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmb-backend
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: bmb-backend
+  template:
+    metadata:
+      labels:
+        app: bmb-backend
+    spec:
+      containers:
+        - name: backend
+          image: bookmybox-backend:latest  # In CI/CD, replace with exact image tag
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: bookmybox-config
+            - secretRef:
+                name: bookmybox-secrets
+          volumeMounts:
+            - name: media-storage
+              mountPath: /app/storage
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: bookmybox-storage-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bmb-backend-service
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+    app.kubernetes.io/component: backend
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    app: bmb-backend
+  type: ClusterIP

@@ -1,11 +1,34 @@
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { grounds, reviews } from "../data/mockData";
+import { apiGetTopGrounds, apiGetFeaturedReviews } from "../lib/api";
 import GroundCard from "../components/GroundCard";
 import StatsCard from "../components/StatsCard";
 
 export const Route = createFileRoute("/")({ component: Landing });
 
 function Landing() {
+  const [groundsList, setGroundsList] = useState<any[]>([]);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [groundsData, reviewsData] = await Promise.all([
+          apiGetTopGrounds(3),
+          apiGetFeaturedReviews(3)
+        ]);
+        setGroundsList(groundsData);
+        setReviewsList(reviewsData);
+      } catch (err) {
+        console.error("Error loading landing data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
   return (
     <>
       <section className="hero">
@@ -71,7 +94,7 @@ function Landing() {
           <Link to="/grounds" className="neo-btn outline">View all →</Link>
         </div>
         <div className="ground-grid">
-          {grounds.slice(0, 3).map(g => <GroundCard key={g.id} g={g} />)}
+          {groundsList.map(g => <GroundCard key={g.id} g={g} />)}
         </div>
       </section>
 
@@ -105,15 +128,19 @@ function Landing() {
       <section className="container" style={{ padding: "60px 24px" }}>
         <h2 className="section-title">What Players Say</h2>
         <div className="ground-grid">
-          {reviews.slice(0, 3).map(r => (
-            <div key={r.id} className="neo-card hoverable">
-              <div style={{ color: "var(--coral)", fontSize: 20 }}>{"★".repeat(r.rating)}</div>
-              <p style={{ fontWeight: 700, margin: "12px 0", fontSize: 18 }}>"{r.text}"</p>
-              <div className="mono">— {r.user}</div>
-            </div>
-          ))}
+          {reviewsList.map(r => {
+            const [author, comment] = r.text && r.text.includes(": ") ? r.text.split(": ") : [r.user?.name || "Player", r.text || ""];
+            return (
+              <div key={r.id} className="neo-card hoverable">
+                <div style={{ color: "var(--coral)", fontSize: 20 }}>{"★".repeat(r.rating)}</div>
+                <p style={{ fontWeight: 700, margin: "12px 0", fontSize: 18 }}>"{comment}"</p>
+                <div className="mono">— {author}</div>
+              </div>
+            );
+          })}
         </div>
       </section>
+
 
       <section className="container text-center" style={{ padding: "60px 24px" }}>
         <div style={{ fontSize: 64, fontWeight: 800, textTransform: "uppercase", letterSpacing: "-0.03em" }} className="mono">Starts at ₹500/hr</div>

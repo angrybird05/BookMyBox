@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookmybox-config
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+data:
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  API_PREFIX: "/api/v1"
+  BACKEND_CORS_ORIGINS: "http://localhost,https://bookmybox.com"
+  REDIS_URL: "redis://bmb-redis-service.bookmybox.svc.cluster.local:6379/0"
+  CELERY_BROKER_URL: "redis://bmb-redis-service.bookmybox.svc.cluster.local:6379/1"
+  CELERY_RESULT_BACKEND: "redis://bmb-redis-service.bookmybox.svc.cluster.local:6379/2"
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_FROM_EMAIL: "noreply@bookmybox.com"
+  SMTP_FROM_NAME: "BookMyBox"
+  STORAGE_BACKEND: "local"
+  STORAGE_LOCAL_PATH: "/app/storage"
+  OTP_EXPIRY_SECONDS: "300"
+  OTP_LENGTH: "6"
+  OTP_MOCK_CODE: "123456"
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "10"
+  DB_POOL_TIMEOUT: "30"
+  DB_ECHO: "false"
+  RATE_LIMIT_PER_MINUTE: "60"
+  RATE_LIMIT_AUTH_PER_MINUTE: "10"

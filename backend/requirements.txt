@@ -1,0 +1,53 @@
+# ─── Core Framework ───
+fastapi[standard]==0.115.12
+uvicorn[standard]==0.34.3
+pydantic==2.11.4
+pydantic-settings==2.9.1
+
+# ─── Database ───
+sqlalchemy[asyncio]==2.0.41
+asyncpg==0.30.0
+alembic==1.16.1
+greenlet==3.2.3
+
+# ─── Redis ───
+redis[hiredis]==5.3.0
+
+# ─── Authentication & Security ───
+python-jose[cryptography]==3.4.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.3.0
+python-multipart==0.0.20
+
+# ─── Background Jobs ───
+celery[redis]==5.5.2
+
+# ─── HTTP Client (OAuth, webhooks) ───
+httpx==0.28.1
+
+# ─── PDF Generation ───
+reportlab==4.4.0
+
+# ─── File Storage ───
+boto3==1.39.3
+
+# ─── Monitoring & Logging ───
+prometheus-fastapi-instrumentator==7.1.0
+structlog==25.4.0
+sentry-sdk[fastapi]==2.29.1
+
+# ─── Utilities ───
+orjson==3.11.0
+python-dateutil==2.9.0.post0
+email-validator==2.2.0
+
+# ─── Testing ───
+pytest==8.4.1
+pytest-asyncio==1.0.0
+pytest-cov==6.2.1
+httpx==0.28.1
+factory-boy==3.3.3
+faker==37.3.0
+
+# ─── Load Testing ───
+locust==2.37.6

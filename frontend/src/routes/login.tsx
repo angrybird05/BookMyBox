@@ -11,14 +11,15 @@ function Login() {
   const [password, setPassword] = useState("password123");
   const [error, setError] = useState("");
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email || !password) { setError("Email and password are required"); return; }
-    const res = login(email, password);
+    const res = await login(email, password);
     if (!res.ok) { setError(res.error || "Login failed"); return; }
     pushToast(`Welcome back, ${res.user!.name}!`, "success");
     navigate({ to: res.user!.role === "admin" ? "/admin" : "/dashboard" });
   };
+
 
   return (
     <div className="auth-wrap">

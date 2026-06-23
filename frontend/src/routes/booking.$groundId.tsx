@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { getGround, generateSlots } from "../data/mockData";
+import { apiGetGround, apiGetSlots, apiCreateBooking, apiValidatePromo, apiGetWalletBalance } from "../lib/api";
 import { useBooking } from "../context/BookingContext";
 import { useAuth } from "../context/AuthContext";
 import SlotPicker from "../components/SlotPicker";
@@ -12,20 +12,92 @@ const STEPS = ["Select Date", "Pick Slots", "Review", "Pay", "Done"];
 
 function BookingFlow() {
   const { groundId } = Route.useParams();
-  const ground = getGround(groundId);
   const navigate = useNavigate();
   const { user, pushToast } = useAuth();
-  const { selectedDate, setSelectedDate, selectedSlots, addSlot, removeSlot, clearSlots, subtotal, discount, total, setSelectedGround } = useBooking();
+  
+  const { 
+    selectedDate, setSelectedDate, 
+    selectedSlots, addSlot, removeSlot, clearSlots, 
+    subtotal, discount: bulkDiscount, total: bulkTotal, 
+    setSelectedGround 
+  } = useBooking();
+
+  const [ground, setGround] = useState<any>(null);
+  const [slots, setSlots] = useState<any[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
   const [step, setStep] = useState(selectedDate ? 1 : 0);
   const [payMethod, setPayMethod] = useState("upi");
   const [ref, setRef] = useState("");
+  
+  // Promo code states
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoError, setPromoError] = useState("");
 
-  const slots = useMemo(() => selectedDate ? generateSlots(groundId, selectedDate) : [], [groundId, selectedDate]);
+  // Load ground details on mount
+  useEffect(() => {
+    async function loadGround() {
+      try {
+        const data = await apiGetGround(groundId);
+        setGround(data);
+        setSelectedGround(data);
+      } catch (err) {
+        console.error("Error loading ground details:", err);
+      }
+    }
+    loadGround();
+  }, [groundId]);
+
+  // Load slots when date is selected/changed
+  useEffect(() => {
+    if (!selectedDate) return;
+    async function loadSlots() {
+      setLoadingSlots(true);
+      try {
+        const res = await apiGetSlots(groundId, selectedDate);
+        if (res && res.data) {
+          const normalized = res.data.map((s: any) => ({
+            id: s.id,
+            groundId: s.ground_id,
+            date: s.date,
+            startTime: s.start_time,
+            endTime: s.end_time,
+            price: s.price,
+            status: s.status.toLowerCase(),
+            duration: s.duration_minutes
+          }));
+          setSlots(normalized);
+        }
+      } catch (err) {
+        console.error("Error loading slots:", err);
+      } finally {
+        setLoadingSlots(false);
+      }
+    }
+    loadSlots();
+  }, [groundId, selectedDate]);
+
+  // Load wallet balance if user is logged in
+  useEffect(() => {
+    if (!user) return;
+    async function fetchWallet() {
+      try {
+        const w = await apiGetWalletBalance();
+        setWalletBalance(w.balance);
+      } catch {}
+    }
+    fetchWallet();
+  }, [user, step]);
+
   const selectedIds = selectedSlots.map(s => s.id);
 
-  if (!ground) return <div className="container" style={{ padding: 40 }}><div className="neo-card">Ground not found.</div></div>;
+  // Calculate final amounts with promo code
+  const finalDiscount = appliedPromo ? bulkDiscount + (bulkTotal - appliedPromo.final_amount) : bulkDiscount;
+  const finalTotal = appliedPromo ? appliedPromo.final_amount : bulkTotal;
 
-  // generate calendar grid for current month
+  // Calendar logic
   const monthDays = useMemo(() => {
     const now = new Date();
     const year = now.getFullYear(); const month = now.getMonth();
@@ -34,7 +106,7 @@ function BookingFlow() {
     for (let i = 0; i < first.getDay(); i++) days.push(null);
     const last = new Date(year, month + 1, 0).getDate();
     for (let i = 1; i <= last; i++) {
-      const dateStr = new Date(year, month, i).toISOString().slice(0,10);
+      const dateStr = new Date(year, month, i).toISOString().slice(0, 10);
       const past = new Date(year, month, i) < new Date(now.getFullYear(), now.getMonth(), now.getDate());
       days.push({ d: dateStr, past });
     }
@@ -43,13 +115,59 @@ function BookingFlow() {
 
   const monthName = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
-  const onPay = () => {
-    if (!user) { pushToast("Please log in to complete payment", "error"); navigate({ to: "/login" }); return; }
-    const newRef = `BMB-2026-${Math.floor(10000 + Math.random() * 89999)}`;
-    setRef(newRef);
-    setStep(4);
-    pushToast("Payment successful!", "success");
+  const applyPromo = async () => {
+    if (!promoCodeInput) return;
+    try {
+      const res = await apiValidatePromo(promoCodeInput, bulkTotal);
+      if (res.valid) {
+        setAppliedPromo(res);
+        setPromoError("");
+        pushToast("Promo code applied successfully!", "success");
+      } else {
+        setPromoError(res.message || "Invalid promo code");
+        setAppliedPromo(null);
+      }
+    } catch (err: any) {
+      setPromoError(err.message || "Error validating promo code");
+      setAppliedPromo(null);
+    }
   };
+
+  const onPay = async () => {
+    if (!user) { 
+      pushToast("Please log in to complete payment", "error"); 
+      navigate({ to: "/login" }); 
+      return; 
+    }
+
+    if (payMethod === "wallet" && walletBalance !== null && walletBalance < finalTotal) {
+      pushToast("Insufficient wallet balance. Top up your wallet first.", "error");
+      return;
+    }
+
+    try {
+      const methodMapping: Record<string, string> = {
+        upi: "UPI",
+        card: "CARD",
+        nb: "NET_BANKING",
+        wallet: "WALLET"
+      };
+      const res = await apiCreateBooking({
+        ground_id: groundId,
+        booking_date: selectedDate,
+        slot_ids: selectedSlots.map(s => s.id),
+        promo_code: appliedPromo ? promoCodeInput : undefined,
+        payment_method: methodMapping[payMethod] || "UPI",
+      });
+      setRef(res.ref);
+      setStep(4);
+      pushToast("Booking created successfully!", "success");
+    } catch (err: any) {
+      pushToast(err.message || "Booking failed", "error");
+    }
+  };
+
+  if (!ground) return <div className="container" style={{ padding: 40 }}><div className="neo-card">Loading ground details...</div></div>;
 
   return (
     <div className="container" style={{ padding: "32px 24px 80px" }}>
@@ -70,7 +188,7 @@ function BookingFlow() {
             {monthDays.map((day, i) => day ? (
               <button key={i}
                 disabled={day.past}
-                onClick={() => { setSelectedDate(day.d); setSelectedGround(ground); clearSlots(); setStep(1); }}
+                onClick={() => { setSelectedDate(day.d); clearSlots(); setStep(1); }}
                 style={{
                   padding: 10, border: "2px solid var(--ink)",
                   background: selectedDate === day.d ? "var(--yellow)" : day.past ? "#eee" : "var(--white)",
@@ -93,7 +211,11 @@ function BookingFlow() {
                 <div><b>Date:</b> {selectedDate}</div>
                 <button className="neo-btn sm outline" onClick={() => setStep(0)}>Change date</button>
               </div>
-              <SlotPicker slots={slots} selectedIds={selectedIds} onToggle={(s: any) => selectedIds.includes(s.id) ? removeSlot(s.id) : addSlot(s)} />
+              {loadingSlots ? (
+                <div className="text-center py-4">Loading slots...</div>
+              ) : (
+                <SlotPicker slots={slots} selectedIds={selectedIds} onToggle={(s: any) => selectedIds.includes(s.id) ? removeSlot(s.id) : addSlot(s)} />
+              )}
             </div>
           </div>
           <BookingCart onContinue={() => selectedSlots.length && setStep(2)} />
@@ -114,8 +236,8 @@ function BookingFlow() {
             ))}
           </div>
           <div className="cart-item"><span>Subtotal</span><span className="mono">₹{subtotal}</span></div>
-          {discount > 0 && <div className="cart-item" style={{ color: "var(--coral)" }}><span>Discount</span><span className="mono">−₹{discount}</span></div>}
-          <div className="cart-total"><span>Total</span><span>₹{total}</span></div>
+          {finalDiscount > 0 && <div className="cart-item" style={{ color: "var(--coral)" }}><span>Discount</span><span className="mono">−₹{finalDiscount}</span></div>}
+          <div className="cart-total"><span>Total</span><span>₹{finalTotal}</span></div>
           <p style={{ marginTop: 16, padding: 12, background: "var(--light)", border: "2px solid var(--ink)", fontSize: 13 }}>
             <b>CANCELLATION POLICY:</b> Free cancellation up to 6 hours before slot start. Partial slot cancellation supported.
           </p>
@@ -155,19 +277,29 @@ function BookingFlow() {
               </>
             )}
             {payMethod === "nb" && <select className="neo-input"><option>Select Bank</option><option>HDFC</option><option>SBI</option><option>ICICI</option></select>}
-            {payMethod === "wallet" && <div className="neo-card">Wallet balance: <span className="mono">₹1250</span></div>}
+            {payMethod === "wallet" && (
+              <div className="neo-card">
+                Wallet balance: <span className="mono">₹{walletBalance !== null ? walletBalance : "Loading..."}</span>
+              </div>
+            )}
           </div>
           <div className="cart">
             <h3 style={{ textTransform: "uppercase", fontWeight: 800, marginBottom: 12 }}>Order Summary</h3>
             {selectedSlots.map(s => <div key={s.id} className="cart-item"><span className="mono">{s.startTime}</span><span>₹{s.price}</span></div>)}
             <div className="cart-item"><span>Subtotal</span><span className="mono">₹{subtotal}</span></div>
-            {discount > 0 && <div className="cart-item" style={{ color: "var(--coral)" }}><span>Discount</span><span className="mono">−₹{discount}</span></div>}
-            <div className="flex gap-2 mt-4">
-              <input className="neo-input" placeholder="Promo code" />
-              <button className="neo-btn sm outline">Apply</button>
+            {finalDiscount > 0 && <div className="cart-item" style={{ color: "var(--coral)" }}><span>Discount</span><span className="mono">−₹{finalDiscount}</span></div>}
+            
+            <div className="flex gap-2 mt-4" style={{ flexDirection: "column" }}>
+              <div className="flex gap-2">
+                <input className="neo-input" placeholder="Promo code" value={promoCodeInput} onChange={e => setPromoCodeInput(e.target.value)} />
+                <button className="neo-btn sm outline" onClick={applyPromo}>Apply</button>
+              </div>
+              {promoError && <div className="neo-error">{promoError}</div>}
+              {appliedPromo && <div style={{ color: "var(--green)", fontSize: 13, fontWeight: 700 }}>Promo code applied!</div>}
             </div>
-            <div className="cart-total"><span>Total</span><span>₹{total}</span></div>
-            <button className="neo-btn block lg mt-4" onClick={onPay}>Pay ₹{total} →</button>
+
+            <div className="cart-total"><span>Total</span><span>₹{finalTotal}</span></div>
+            <button className="neo-btn block lg mt-4" onClick={onPay}>Pay ₹{finalTotal} →</button>
           </div>
         </div>
       )}
@@ -181,10 +313,9 @@ function BookingFlow() {
             <div><b>Ground:</b> {ground.name}</div>
             <div><b>Date:</b> {selectedDate}</div>
             <div><b>Slots:</b> {selectedSlots.map(s => `${s.startTime}-${s.endTime}`).join(", ")}</div>
-            <div><b>Amount Paid:</b> ₹{total}</div>
+            <div><b>Amount Paid:</b> ₹{finalTotal}</div>
           </div>
           <div className="flex gap-3 mt-6" style={{ justifyContent: "center", flexWrap: "wrap" }}>
-            <button className="neo-btn dark">Download Ticket</button>
             <button className="neo-btn" onClick={() => { clearSlots(); navigate({ to: "/grounds" }); }}>Book Another</button>
           </div>
           <Link to="/dashboard/bookings" style={{ display: "block", marginTop: 16, fontWeight: 700, textTransform: "uppercase", fontSize: 12 }}>View in My Bookings →</Link>

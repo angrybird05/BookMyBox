@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 export const Route = createFileRoute("/register")({ component: Register });
 
 function Register() {
-  const { register, pushToast } = useAuth();
+  const { register, verifyOtp, pushToast } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "", confirm: "" });
   const [errors, setErrors] = useState<Record<string,string>>({});
@@ -14,7 +14,7 @@ function Register() {
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const errs: Record<string,string> = {};
     if (!form.name) errs.name = "Name required";
@@ -24,18 +24,28 @@ function Register() {
     if (form.password !== form.confirm) errs.confirm = "Passwords don't match";
     setErrors(errs);
     if (Object.keys(errs).length) return;
+    
+    const res = await register({ name: form.name, email: form.email, phone: form.phone, password: form.password, city: "" });
+    if (!res.ok) {
+      setErrors({ email: res.error || "Registration failed" });
+      return;
+    }
     setOtpStep(true);
     pushToast("OTP sent to your phone (use 123456)", "info");
   };
 
-  const verifyOtp = (e: FormEvent) => {
+  const handleVerifyOtp = async (e: FormEvent) => {
     e.preventDefault();
-    if (otp !== "123456") { setErrors({ otp: "Invalid OTP. Try 123456" }); return; }
-    const res = register({ name: form.name, email: form.email, phone: form.phone, password: form.password, city: "" });
-    if (!res.ok) { setErrors({ otp: res.error || "Error" }); return; }
+    const res = await verifyOtp(form.email, otp);
+    if (!res.ok) {
+      setErrors({ otp: res.error || "Invalid OTP" });
+      return;
+    }
     pushToast("Account created!", "success");
     navigate({ to: "/dashboard" });
   };
+
+
 
   return (
     <div className="auth-wrap">
@@ -51,7 +61,7 @@ function Register() {
             <button className="neo-btn block lg" type="submit">Create Account →</button>
           </form>
         ) : (
-          <form onSubmit={verifyOtp}>
+          <form onSubmit={handleVerifyOtp}>
             <p className="mb-4">We've sent a 6-digit OTP to {form.phone}.</p>
             <input className="neo-input mb-4" placeholder="Enter OTP" value={otp} onChange={e => setOtp(e.target.value)} />
             {errors.otp && <div className="neo-error mb-4">{errors.otp}</div>}

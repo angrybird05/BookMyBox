@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { users as mockUsers } from "../data/mockData";
+import { apiLogin, apiRegister, apiVerifyOtp, apiLogout, apiGetMe, clearAuthData } from "../lib/api";
 
 /** @type {React.Context<any>} */
 const AuthContext = createContext(null);
@@ -12,33 +12,64 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
-      if (raw) setUser(JSON.parse(raw));
+      if (raw) {
+        setUser(JSON.parse(raw));
+      }
     } catch {}
+
+    // Refresh profile state on boot
+    const refreshProfile = async () => {
+      try {
+        const u = await apiGetMe();
+        setUser(u);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+      } catch {
+        // If unauthorized/expired, clear auth data
+        clearAuthData();
+        setUser(null);
+      }
+    };
+    refreshProfile();
   }, []);
 
-  const login = (email, password) => {
-    const found = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-    if (!found) return { ok: false, error: "Invalid email or password" };
-    const { password: _p, ...safe } = found;
-    setUser(safe);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(safe)); } catch {}
-    return { ok: true, user: safe };
+  const login = async (email, password) => {
+    try {
+      const data = await apiLogin({ email, password });
+      setUser(data.user);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+      return { ok: true, user: data.user };
+    } catch (err) {
+      return { ok: false, error: err.message || "Invalid email or password" };
+    }
   };
 
-  const register = (data) => {
-    const existing = mockUsers.find(u => u.email.toLowerCase() === data.email.toLowerCase());
-    if (existing) return { ok: false, error: "Email already registered" };
-    const newUser = { id: `u${Date.now()}`, ...data, role: "user", wallet: 0, totalSpent: 0, bookings: 0, status: "ACTIVE" };
-    mockUsers.push({ ...newUser, password: data.password });
-    const { password: _p, ...safe } = newUser;
-    setUser(safe);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(safe)); } catch {}
-    return { ok: true, user: safe };
+  const register = async (data) => {
+    try {
+      await apiRegister(data);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || "Registration failed" };
+    }
   };
 
-  const logout = () => {
+  const verifyOtp = async (email, code) => {
+    try {
+      const data = await apiVerifyOtp(email, code);
+      setUser(data.user);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+      return { ok: true, user: data.user };
+    } catch (err) {
+      return { ok: false, error: err.message || "Invalid OTP verification code" };
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await apiLogout();
+    } catch {}
+    clearAuthData();
     setUser(null);
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const pushToast = (message, type = "info") => {
@@ -48,7 +79,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin: user?.role === "admin", login, logout, register, toasts, pushToast }}>
+    <AuthContext.Provider value={{ user, isAdmin: user?.role === "admin", login, logout, register, verifyOtp, toasts, pushToast }}>
       {children}
     </AuthContext.Provider>
   );
@@ -59,3 +90,4 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 }
+

@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmb-db
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bmb-db
+  template:
+    metadata:
+      labels:
+        app: bmb-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_DB
+              value: bookmybox
+            - name: POSTGRES_USER
+              value: bookmybox
+            # Note: In production, load the password from a Kubernetes Secret
+            - name: POSTGRES_PASSWORD
+              value: bookmybox_secret
+          volumeMounts:
+            - name: db-storage
+              mountPath: /var/lib/postgresql/data
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "bookmybox"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "bookmybox"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: db-storage
+          persistentVolumeClaim:
+            claimName: bookmybox-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bmb-db-service
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+    app.kubernetes.io/component: database
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    app: bmb-db
+  type: ClusterIP

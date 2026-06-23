@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmb-worker
+  namespace: bookmybox
+  labels:
+    app.kubernetes.io/name: bookmybox
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bmb-worker
+  template:
+    metadata:
+      labels:
+        app: bmb-worker
+    spec:
+      containers:
+        - name: worker
+          image: bookmybox-backend:latest  # In CI/CD, replace with exact image tag
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: bookmybox-config
+            - secretRef:
+                name: bookmybox-secrets
+          volumeMounts:
+            - name: media-storage
+              mountPath: /app/storage
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          # A worker doesn't expose ports, but we can verify it's running via process checks if needed.
+          # We'll omit standard HTTP probes since there's no HTTP server in Celery.
+      volumes:
+        - name: media-storage
+          persistentVolumeClaim:
+            claimName: bookmybox-storage-pvc
