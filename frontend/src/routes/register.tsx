@@ -18,8 +18,6 @@ function Register() {
     groundName: ""
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [otpStep, setOtpStep] = useState(false);
-  const [otp, setOtp] = useState("");
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -58,14 +56,6 @@ function Register() {
     setErrors(errs);
     if (Object.keys(errs).length) return;
     
-    setOtpStep(true);
-    pushToast("OTP sent to your phone (use 123456)", "info");
-  };
-
-  const verifyOtp = (e: FormEvent) => {
-    e.preventDefault();
-    if (otp !== "123456") { setErrors({ otp: "Invalid OTP. Try 123456" }); return; }
-    
     const res = register({
       name: form.name,
       email: form.email,
@@ -76,7 +66,14 @@ function Register() {
       groundName: role === "admin" ? form.groundName : ""
     });
     
-    if (!res.ok) { setErrors({ otp: res.error || "Registration failed" }); return; }
+    if (!res.ok) {
+      if (res.error?.toLowerCase().includes("email")) {
+        setErrors({ email: res.error });
+      } else {
+        pushToast(res.error || "Registration failed", "error");
+      }
+      return;
+    }
     pushToast("Account created successfully!", "success");
     navigate({ to: res.user.role === "admin" ? "/admin" : "/dashboard" });
   };
@@ -122,7 +119,7 @@ function Register() {
 
         <div className="flex between center mb-4">
           <h1 style={{ fontSize: 24, margin: 0 }}>
-            {otpStep ? "Verify OTP" : "Create Account"}
+            Create Account
           </h1>
           <span className="neo-badge dark" style={{
             background: role === "user" ? "var(--yellow)" : "var(--purple)",
@@ -133,200 +130,160 @@ function Register() {
           </span>
         </div>
 
-        {!otpStep ? (
-          <>
-            <p style={{ fontSize: 13, marginBottom: 20, color: "#555" }}>
-              {role === "user"
-                ? "Join as a Player to search venues, checkout multiple slots, and track bookings."
-                : "Register as a Turf Partner to list your grounds, view bookings, and manage schedules."}
-            </p>
+        <p style={{ fontSize: 13, marginBottom: 20, color: "#555" }}>
+          {role === "user"
+            ? "Join as a Player to search venues, checkout multiple slots, and track bookings."
+            : "Register as a Turf Partner to list your grounds, view bookings, and manage schedules."}
+        </p>
 
-            {/* Neo-brutalist Tab Switcher */}
-            <div style={{ display: "flex", gap: "10px", marginBottom: "24px" }}>
-              <button
-                type="button"
-                onClick={() => handleRoleChange("user")}
-                className="neo-btn sm"
-                style={{
-                  flex: 1,
-                  background: role === "user" ? "var(--yellow)" : "var(--white)",
-                  boxShadow: role === "user" ? "var(--shadow)" : "none",
-                  transform: role === "user" ? "translate(-2px, -2px)" : "none",
-                  border: "var(--border)",
-                  transition: "all 0.15s ease"
-                }}
-              >
-                🏏 Join as Player
-              </button>
-              <button
-                type="button"
-                onClick={() => handleRoleChange("admin")}
-                className="neo-btn sm"
-                style={{
-                  flex: 1,
-                  background: role === "admin" ? "var(--purple)" : "var(--white)",
-                  boxShadow: role === "admin" ? "var(--shadow)" : "none",
-                  transform: role === "admin" ? "translate(-2px, -2px)" : "none",
-                  border: "var(--border)",
-                  transition: "all 0.15s ease"
-                }}
-              >
-                👑 Join as Partner
-              </button>
-            </div>
+        {/* Neo-brutalist Tab Switcher */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "24px" }}>
+          <button
+            type="button"
+            onClick={() => handleRoleChange("user")}
+            className="neo-btn sm"
+            style={{
+              flex: 1,
+              background: role === "user" ? "var(--yellow)" : "var(--white)",
+              boxShadow: role === "user" ? "var(--shadow)" : "none",
+              transform: role === "user" ? "translate(-2px, -2px)" : "none",
+              border: "var(--border)",
+              transition: "all 0.15s ease"
+            }}
+          >
+            🏏 Join as Player
+          </button>
+          <button
+            type="button"
+            onClick={() => handleRoleChange("admin")}
+            className="neo-btn sm"
+            style={{
+              flex: 1,
+              background: role === "admin" ? "var(--purple)" : "var(--white)",
+              boxShadow: role === "admin" ? "var(--shadow)" : "none",
+              transform: role === "admin" ? "translate(-2px, -2px)" : "none",
+              border: "var(--border)",
+              transition: "all 0.15s ease"
+            }}
+          >
+            👑 Join as Partner
+          </button>
+        </div>
 
-            <form onSubmit={submit}>
-              <div className="field">
-                <label className="neo-label">Full Name</label>
-                <input
-                  className="neo-input"
-                  value={form.name}
-                  onChange={e => set("name", e.target.value)}
-                  onFocus={() => setFocusedField("name")}
-                  onBlur={() => setFocusedField(null)}
-                  style={getFocusStyle("name")}
-                />
-                {errors.name && <div className="neo-error">{errors.name}</div>}
-              </div>
+        <form onSubmit={submit}>
+          <div className="field">
+            <label className="neo-label">Full Name</label>
+            <input
+              className="neo-input"
+              value={form.name}
+              onChange={e => set("name", e.target.value)}
+              onFocus={() => setFocusedField("name")}
+              onBlur={() => setFocusedField(null)}
+              style={getFocusStyle("name")}
+            />
+            {errors.name && <div className="neo-error">{errors.name}</div>}
+          </div>
 
-              <div className="field">
-                <label className="neo-label">Email Address</label>
-                <input
-                  className="neo-input"
-                  type="email"
-                  value={form.email}
-                  onChange={e => set("email", e.target.value)}
-                  onFocus={() => setFocusedField("email")}
-                  onBlur={() => setFocusedField(null)}
-                  style={getFocusStyle("email")}
-                />
-                {errors.email && <div className="neo-error">{errors.email}</div>}
-              </div>
+          <div className="field">
+            <label className="neo-label">Email Address</label>
+            <input
+              className="neo-input"
+              type="email"
+              value={form.email}
+              onChange={e => set("email", e.target.value)}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
+              style={getFocusStyle("email")}
+            />
+            {errors.email && <div className="neo-error">{errors.email}</div>}
+          </div>
 
-              <div className="field">
-                <label className="neo-label">Phone Number</label>
-                <input
-                  className="neo-input"
-                  value={form.phone}
-                  onChange={e => set("phone", e.target.value)}
-                  onFocus={() => setFocusedField("phone")}
-                  onBlur={() => setFocusedField(null)}
-                  style={getFocusStyle("phone")}
-                />
-                {errors.phone && <div className="neo-error">{errors.phone}</div>}
-              </div>
+          <div className="field">
+            <label className="neo-label">Phone Number</label>
+            <input
+              className="neo-input"
+              value={form.phone}
+              onChange={e => set("phone", e.target.value)}
+              onFocus={() => setFocusedField("phone")}
+              onBlur={() => setFocusedField(null)}
+              style={getFocusStyle("phone")}
+            />
+            {errors.phone && <div className="neo-error">{errors.phone}</div>}
+          </div>
 
-              {/* Dynamic role-specific fields */}
-              {role === "user" ? (
-                <div className="field">
-                  <label className="neo-label">City</label>
-                  <select
-                    className="neo-input"
-                    value={form.city}
-                    onChange={e => set("city", e.target.value)}
-                    onFocus={() => setFocusedField("city")}
-                    onBlur={() => setFocusedField(null)}
-                    style={getFocusStyle("city")}
-                  >
-                    <option value="Hyderabad">Hyderabad</option>
-                    <option value="Bengaluru">Bengaluru</option>
-                    <option value="Mumbai">Mumbai</option>
-                    <option value="Delhi">Delhi</option>
-                  </select>
-                </div>
-              ) : (
-                <div className="field">
-                  <label className="neo-label">Turf / Business Name</label>
-                  <input
-                    className="neo-input"
-                    placeholder="e.g. Boundary Hitters Arena"
-                    value={form.groundName}
-                    onChange={e => set("groundName", e.target.value)}
-                    onFocus={() => setFocusedField("groundName")}
-                    onBlur={() => setFocusedField(null)}
-                    style={getFocusStyle("groundName")}
-                  />
-                  {errors.groundName && <div className="neo-error">{errors.groundName}</div>}
-                </div>
-              )}
-
-              <div className="field">
-                <label className="neo-label">Password</label>
-                <input
-                  className="neo-input"
-                  type="password"
-                  value={form.password}
-                  onChange={e => set("password", e.target.value)}
-                  onFocus={() => setFocusedField("password")}
-                  onBlur={() => setFocusedField(null)}
-                  style={getFocusStyle("password")}
-                />
-                {errors.password && <div className="neo-error">{errors.password}</div>}
-              </div>
-
-              <div className="field">
-                <label className="neo-label">Confirm Password</label>
-                <input
-                  className="neo-input"
-                  type="password"
-                  value={form.confirm}
-                  onChange={e => set("confirm", e.target.value)}
-                  onFocus={() => setFocusedField("confirm")}
-                  onBlur={() => setFocusedField(null)}
-                  style={getFocusStyle("confirm")}
-                />
-                {errors.confirm && <div className="neo-error">{errors.confirm}</div>}
-              </div>
-
-              <button
-                className="neo-btn block lg"
-                type="submit"
-                style={{
-                  background: role === "user" ? "var(--yellow)" : "var(--purple)",
-                  transition: "background 0.2s ease"
-                }}
-              >
-                Register as {role === "user" ? "Player" : "Partner"} →
-              </button>
-            </form>
-          </>
-        ) : (
-          <form onSubmit={verifyOtp}>
-            <p className="mb-4" style={{ fontSize: 14 }}>
-              We've sent a 6-digit verification code to <b>{form.phone}</b>.
-            </p>
+          {/* Dynamic role-specific fields */}
+          {role === "user" ? (
             <div className="field">
-              <label className="neo-label">Enter OTP Code</label>
-              <input
-                className="neo-input mb-2"
-                placeholder="Enter Code (use 123456)"
-                value={otp}
-                onChange={e => setOtp(e.target.value)}
-                onFocus={() => setFocusedField("otp")}
+              <label className="neo-label">City</label>
+              <select
+                className="neo-input"
+                value={form.city}
+                onChange={e => set("city", e.target.value)}
+                onFocus={() => setFocusedField("city")}
                 onBlur={() => setFocusedField(null)}
-                style={getFocusStyle("otp")}
-              />
-              {errors.otp && <div className="neo-error mb-4">{errors.otp}</div>}
+                style={getFocusStyle("city")}
+              >
+                <option value="Hyderabad">Hyderabad</option>
+                <option value="Bengaluru">Bengaluru</option>
+                <option value="Mumbai">Mumbai</option>
+                <option value="Delhi">Delhi</option>
+              </select>
             </div>
-            <button
-              className="neo-btn block lg"
-              type="submit"
-              style={{
-                background: role === "user" ? "var(--yellow)" : "var(--purple)",
-                transition: "background 0.2s ease"
-              }}
-            >
-              Verify & Complete Registration →
-            </button>
-            <button
-              type="button"
-              className="neo-btn block outline mt-2"
-              onClick={() => setOtpStep(false)}
-            >
-              ← Back to Registration Form
-            </button>
-          </form>
-        )}
+          ) : (
+            <div className="field">
+              <label className="neo-label">Turf / Business Name</label>
+              <input
+                className="neo-input"
+                placeholder="e.g. Boundary Hitters Arena"
+                value={form.groundName}
+                onChange={e => set("groundName", e.target.value)}
+                onFocus={() => setFocusedField("groundName")}
+                onBlur={() => setFocusedField(null)}
+                style={getFocusStyle("groundName")}
+              />
+              {errors.groundName && <div className="neo-error">{errors.groundName}</div>}
+            </div>
+          )}
+
+          <div className="field">
+            <label className="neo-label">Password</label>
+            <input
+              className="neo-input"
+              type="password"
+              value={form.password}
+              onChange={e => set("password", e.target.value)}
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
+              style={getFocusStyle("password")}
+            />
+            {errors.password && <div className="neo-error">{errors.password}</div>}
+          </div>
+
+          <div className="field">
+            <label className="neo-label">Confirm Password</label>
+            <input
+              className="neo-input"
+              type="password"
+              value={form.confirm}
+              onChange={e => set("confirm", e.target.value)}
+              onFocus={() => setFocusedField("confirm")}
+              onBlur={() => setFocusedField(null)}
+              style={getFocusStyle("confirm")}
+            />
+            {errors.confirm && <div className="neo-error">{errors.confirm}</div>}
+          </div>
+
+          <button
+            className="neo-btn block lg"
+            type="submit"
+            style={{
+              background: role === "user" ? "var(--yellow)" : "var(--purple)",
+              transition: "background 0.2s ease"
+            }}
+          >
+            Register as {role === "user" ? "Player" : "Partner"} →
+          </button>
+        </form>
 
         <div className="mt-4 text-center" style={{ fontSize: 13 }}>
           Already have an account?{" "}
@@ -336,31 +293,29 @@ function Register() {
         </div>
 
         {/* Demo Autofill console */}
-        {!otpStep && (
-          <div style={{ marginTop: 24, padding: 16, background: "var(--light)", border: "2px solid var(--ink)", boxShadow: "var(--shadow-sm)" }}>
-            <div style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 700, textTransform: "uppercase", marginBottom: 12, borderBottom: "2px dashed var(--ink)", paddingBottom: 6 }}>
-              🛠️ Demo Autofill Console
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-              <button
-                type="button"
-                className="neo-btn outline sm"
-                onClick={() => quickFill("user")}
-                style={{ fontSize: 11 }}
-              >
-                🏏 Fill Player Form
-              </button>
-              <button
-                type="button"
-                className="neo-btn outline sm"
-                onClick={() => quickFill("admin")}
-                style={{ fontSize: 11 }}
-              >
-                👑 Fill Partner Form
-              </button>
-            </div>
+        <div style={{ marginTop: 24, padding: 16, background: "var(--light)", border: "2px solid var(--ink)", boxShadow: "var(--shadow-sm)" }}>
+          <div style={{ fontSize: 11, fontFamily: "var(--mono)", fontWeight: 700, textTransform: "uppercase", marginBottom: 12, borderBottom: "2px dashed var(--ink)", paddingBottom: 6 }}>
+            🛠️ Demo Autofill Console
           </div>
-        )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <button
+              type="button"
+              className="neo-btn outline sm"
+              onClick={() => quickFill("user")}
+              style={{ fontSize: 11 }}
+            >
+              🏏 Fill Player Form
+            </button>
+            <button
+              type="button"
+              className="neo-btn outline sm"
+              onClick={() => quickFill("admin")}
+              style={{ fontSize: 11 }}
+            >
+              👑 Fill Partner Form
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
