@@ -253,7 +253,7 @@ function BookingFlow() {
           <div className="neo-card">
             <h2 style={{ textTransform: "uppercase", fontWeight: 800, marginBottom: 16 }}>Payment</h2>
             <div className="flex gap-2 mb-4" style={{ flexWrap: "wrap" }}>
-              {[["upi","UPI"],["card","Card"],["nb","Net Banking"],["wallet","Wallet"]].map(([v,l]) => (
+              {[["upi","UPI"],["card","Card"],["nb","Net Banking"]].map(([v,l]) => (
                 <button key={v} className={`neo-btn sm ${payMethod === v ? "" : "outline"}`} onClick={() => setPayMethod(v)}>{l}</button>
               ))}
             </div>

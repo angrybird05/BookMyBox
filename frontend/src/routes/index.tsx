@@ -3,10 +3,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { apiGetTopGrounds, apiGetFeaturedReviews } from "../lib/api";
 import GroundCard from "../components/GroundCard";
 import StatsCard from "../components/StatsCard";
+import { useAuth } from "../context/AuthContext";
 
 export const Route = createFileRoute("/")({ component: Landing });
 
 function Landing() {
+  const { user } = useAuth();
   const [groundsList, setGroundsList] = useState<any[]>([]);
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,8 +44,16 @@ function Landing() {
               </h1>
               <p className="lede">Reserve slots instantly. Pay online. Play now. The fastest way to book box cricket in your city.</p>
               <div className="hero-ctas">
-                <Link to="/grounds" className="neo-btn lg">Find a Ground →</Link>
-                <a href="#how" className="neo-btn lg outline">How it Works</a>
+                {user ? (
+                  <Link to="/grounds" className="neo-btn lg">Find a Ground →</Link>
+                ) : (
+                  <Link to="/login" search={{ role: "user" }} className="neo-btn lg">Find a Ground →</Link>
+                )}
+                {user && user.role === "admin" ? (
+                  <Link to="/add-ground" className="neo-btn lg outline">Add Your Ground →</Link>
+                ) : (
+                  <Link to="/login" search={{ role: "admin" }} className="neo-btn lg outline">Add Your Ground →</Link>
+                )}
               </div>
             </div>
             <div style={{ position: "relative" }}>
@@ -75,7 +85,7 @@ function Landing() {
           {[
             { n: "01", t: "Search Ground", d: "Filter by location, price, and amenities.", i: "🔍" },
             { n: "02", t: "Pick Slots", d: "Select one or more time slots in one go.", i: "🕒" },
-            { n: "03", t: "Pay Online", d: "UPI, cards, wallet — your choice.", i: "💳" },
+            { n: "03", t: "Pay Online", d: "UPI, cards, or net banking — your choice.", i: "💳" },
             { n: "04", t: "Play!", d: "Show your ticket and hit the turf.", i: "🏏" },
           ].map(s => (
             <div key={s.n} className="how-step">

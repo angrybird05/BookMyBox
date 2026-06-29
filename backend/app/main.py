@@ -49,25 +49,24 @@ app = FastAPI(
 )
 
 # ─── Middlewares ───
-# NOTE: FastAPI/Starlette executes middlewares in REVERSE registration order.
-# The last registered middleware runs FIRST (outermost layer).
-# CORS must be outermost so it can attach Access-Control headers even when
-# inner middlewares (rate limit, auth) return error responses.
+# All custom middleware is now pure ASGI (not BaseHTTPMiddleware), so exceptions
+# propagate correctly through the stack. CORSMiddleware (also pure ASGI) is registered
+# last so it runs first as the outermost layer, ensuring CORS headers are attached
+# even on error/500 responses.
 
-# 5. Security Headers (innermost — runs last)
+# Security Headers (innermost — runs last)
 app.add_middleware(SecurityHeadersMiddleware)
 
-# 3. Rate Limiting (Redis-backed)
+# Rate Limiting (Redis-backed)
 app.add_middleware(RateLimitMiddleware)
 
-# 2. Logging
+# Logging
 app.add_middleware(LoggingMiddleware)
 
-# 1. Request ID
+# Request ID
 app.add_middleware(RequestIdMiddleware)
 
-# 4. CORS (outermost — registered last, runs first)
-# This ensures CORS headers are always present, even on error responses.
+# CORS (outermost — registered last, runs first)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -75,7 +74,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 
 # ─── Exception Handlers ───

@@ -1,0 +1,22 @@
+# Don't bake env/secrets or local artifacts into the image.
+# Config is provided at runtime via docker-compose env_file instead.
+.env
+.env.*
+!.env.example
+
+# VCS
+.git
+.gitignore
+.github
+
+# Python caches & tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Local storage / data
+storage/
+*.log

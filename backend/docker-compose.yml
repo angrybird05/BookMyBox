@@ -39,6 +39,10 @@ services:
       dockerfile: Dockerfile
     container_name: bmb-backend
     restart: always
+    # Load host .env at runtime so config changes (e.g. CORS origins) don't
+    # require an image rebuild. The keys below override .env for container use.
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://bookmybox:bookmybox_secret@db:5432/bookmybox
       - REDIS_URL=redis://redis:6379/0
